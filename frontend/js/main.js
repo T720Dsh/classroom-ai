@@ -1,11 +1,11 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js?v=15';
-import { PhysicsWorld } from './physics.js?v=15';
-import { Player } from './player.js?v=15';
-import { buildAllNPCs } from './npc.js?v=15';
-import { Dialogue } from './dialogue.js?v=15';
-import { Audio } from './audio.js?v=15';
+import { buildClassroom } from './scene.js?v=16';
+import { PhysicsWorld } from './physics.js?v=16';
+import { Player } from './player.js?v=16';
+import { buildAllNPCs } from './npc.js?v=16';
+import { Dialogue } from './dialogue.js?v=16';
+import { Audio } from './audio.js?v=16';
 import * as CANNON from 'cannon-es';
 
 // ---------- 基础 ----------

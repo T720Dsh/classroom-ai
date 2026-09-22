@@ -38,7 +38,7 @@ export function buildClassroom(scene, physics) {
   // ---------- 地板（厚板，不发黑） ----------
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(ROOM.width, 0.1, ROOM.depth),
-    Flat(0xc9a876)
+    Flat(0xe8c89a)
   );
   floor.position.y = -0.05;
   scene.add(floor);
@@ -51,7 +51,7 @@ export function buildClassroom(scene, physics) {
   // ---------- 天花板（厚板） ----------
   const ceiling = new THREE.Mesh(
     new THREE.BoxGeometry(ROOM.width, 0.1, ROOM.depth),
-    Flat(0xf0f0f0)
+    Flat(0xffffff)
   );
   ceiling.position.y = ROOM.height + 0.05;
   scene.add(ceiling);
@@ -65,7 +65,7 @@ export function buildClassroom(scene, physics) {
 
   // ---------- 墙（厚板，实心，绝不发黑） ----------
   const wallThick = 0.2;
-  const wallColor = 0xf5f0e8;
+  const wallColor = 0xfffaf0;
   const mkWallBox = (w, h, d, x, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), Flat(wallColor));
     m.position.set(x, y, z);
@@ -82,14 +82,14 @@ export function buildClassroom(scene, physics) {
 
   // 踢脚线
   const mkBase = (w, x, z) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.04), Flat(0x8b5a2b));
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.04), Flat(0xa0724a));
     b.position.set(x, 0.06, z);
     scene.add(b);
   };
   mkBase(ROOM.width, 0, -ROOM.depth/2 + 0.02);
   mkBase(ROOM.width, 0, ROOM.depth/2 - 0.02);
   // 左右踢脚线
-  const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, ROOM.depth), Flat(0x8b5a2b));
+  const baseL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, ROOM.depth), Flat(0xa0724a));
   baseL.position.set(-ROOM.width/2 + 0.02, 0.06, 0);
   scene.add(baseL);
   const baseR = baseL.clone();
@@ -201,10 +201,10 @@ export function buildClassroom(scene, physics) {
   // ---------- 学生桌椅（修正高度：桌面 0.75m，椅面 0.45m） ----------
   const cols = [-4.5, -2.7, -0.9, 0.9, 2.7, 4.5];
   const rows = [-1.8, -0.4, 1.0, 2.4, 3.8];
-  const deskTopMat = M(0xd4a76a);
-  const deskEdgeMat = M(0x8b5a2b);  // 桌面边缘包边
-  const legMat = M(0x444444);
-  const chairSeatMat = M(0x6b8caf);
+  const deskTopMat = M(0xe8c89a);
+  const deskEdgeMat = M(0xa0724a);  // 桌面边缘包边
+  const legMat = M(0x555555);
+  const chairSeatMat = M(0x8bb4d9);
   const dynamicProps = [];
 
   for (const z of rows) {
