@@ -6,6 +6,7 @@ import { Player } from './player.js?v=16';
 import { buildAllNPCs } from './npc.js?v=16';
 import { Dialogue } from './dialogue.js?v=16';
 import { Audio } from './audio.js?v=16';
+import { createVisualTour } from './visual-tour.js';
 import * as CANNON from 'cannon-es';
 
 // ---------- 基础 ----------
@@ -33,12 +34,45 @@ const physics = new PhysicsWorld();
 const room = buildClassroom(scene, physics);
 window.__scene = scene; // debug
 const player = new Player(camera, canvas, room.staticColliders, room.ROOM);
+const qaParams = new URLSearchParams(location.search);
+const visualTour = qaParams.has('visualTour') ? createVisualTour(player) : null;
+const chairCheck = qaParams.has('chairCheck');
+if (chairCheck) {
+  player.yaw = 2.08;
+  player.pitch = -0.78;
+  player.update(0);
+  document.getElementById('start-menu').classList.add('hidden');
+  document.getElementById('help-overlay').classList.add('hidden');
+}
 window.__player = player;
+player.setDynamicColliders(() => {
+  const blocks = [];
+  for (const npc of Object.values(npcs)) {
+    const { x, z } = npc.group.position;
+    blocks.push({ minX:x-0.31, maxX:x+0.31, minZ:z-0.31, maxZ:z+0.31 });
+  }
+  for (const prop of room.dynamicProps) {
+    const { x, z } = prop.body.position;
+    // Ignore chairs being held above the player's head.
+    if (prop.body.position.y > 1.7) continue;
+    blocks.push({ minX:x-0.25, maxX:x+0.25, minZ:z-0.25, maxZ:z+0.25 });
+  }
+  return blocks;
+});
 const dialogue = new Dialogue(camera, player);
 const audio = new Audio();
 
 const speechLayer = document.getElementById('speech-layer');
 const bubbles = [];
+const eventToast = document.getElementById('event-toast');
+let eventToastTimer = null;
+function showEventToast(speaker, line, duration = 8500) {
+  document.getElementById('event-speaker').textContent = speaker;
+  document.getElementById('event-line').textContent = line;
+  eventToast.classList.remove('hidden');
+  clearTimeout(eventToastTimer);
+  if (duration) eventToastTimer = setTimeout(() => eventToast.classList.add('hidden'), duration);
+}
 
 let npcs = {};
 let sessionId = null;
@@ -58,7 +92,8 @@ async function fetchState() {
     const r = await fetch('/api/state');
     const s = await r.json();
     document.getElementById('mode-badge').textContent =
-      s.llm_mode === 'llm' ? `LLM: ${s.model}` : 'MOCK（未配 LLM）';
+      s.llm_mode === 'local' ? '本地 LLM' :
+      s.llm_mode === 'openai' ? `LLM: ${s.model}` : 'MOCK（未配 LLM）';
   } catch {
     document.getElementById('mode-badge').textContent = '后端未启动';
   }
@@ -66,6 +101,7 @@ async function fetchState() {
 
 // ---------- 射线 ----------
 const raycaster = new THREE.Raycaster();
+raycaster.far = 2.6;
 const center = new THREE.Vector2(0,0);
 let hovered = null;
 
@@ -130,15 +166,20 @@ function updateBubbles() {
 // ---------- 事件 ----------
 function triggerEvent(desc, sfx) {
   if (sfx && audio[sfx]) audio[sfx]();
+  showEventToast('教室', '大家注意到了动静，正在回应…', 0);
   api('/api/event', { session_id: sessionId, event: desc }).then(res => {
-    if (res.error) return;
+    if (res.error) { eventToast.classList.add('hidden'); return; }
     sessionId = res.session_id;
     const npc = npcs[res.responder];
-    if (!npc) return;
+    if (!npc) { eventToast.classList.add('hidden'); return; }
     npc.faceTo(player.position);
     npc.guessExpression(res.line);
     showBubble(npc, res.line);
-  }).catch(e => console.warn('event', e));
+    showEventToast(npc.name, res.line);
+  }).catch(e => {
+    eventToast.classList.add('hidden');
+    console.warn('event', e);
+  });
 }
 
 // ---------- 对话 ----------
@@ -195,8 +236,8 @@ function doInteract() {
         b.wakeUp();
         const dir = player.forwardVector;
         b.applyImpulse(
-          new CANNON.Vec3(dir.x*4, 2, dir.z*4),
-          new CANNON.Vec3(b.position.x, b.position.y, b.position.z)
+          new CANNON.Vec3(dir.x*4, 1.2, dir.z*4),
+          new CANNON.Vec3(0, 0.27, 0)
         );
         triggerEvent('玩家一脚踢翻了一把椅子，"哐当"一声巨响。', 'chairFall');
       }
@@ -217,7 +258,7 @@ function doInteract() {
     case 'clock': triggerEvent('玩家抬头看了看墙上的钟。', null); break;
     case 'projector': triggerEvent('玩家摆弄投影仪，灯泡闪了闪。', 'knock'); break;
     case 'poster': triggerEvent('玩家盯着墙上的海报看了一会儿。', null); break;
-    default: triggerEvent('玩家做了一个奇怪的动作。', null);
+    default: triggerEvent(`玩家${ud.label || '观察了教室里的东西'}。`, null);
   }
 }
 
@@ -237,6 +278,7 @@ window.addEventListener('mouseup', () => {
     const v = player.forwardVector.clone().multiplyScalar(5);
     v.y = 1;
     physics.release(new CANNON.Vec3(v.x, v.y, v.z));
+    triggerEvent('玩家抓起一把椅子扔了出去，椅子撞在地上。', 'chairFall');
     grabbing = false;
   }
 });
@@ -291,7 +333,7 @@ const clock = new THREE.Clock();
 async function init() {
   npcs = await buildAllNPCs(scene);
   fetchState();
-  setTimeout(() => document.getElementById('help-overlay').classList.remove('hidden'), 400);
+  if (!visualTour && !chairCheck) setTimeout(() => document.getElementById('help-overlay').classList.remove('hidden'), 400);
 }
 init();
 
@@ -300,6 +342,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (!dialogue.active) player.update(dt);
+  if (visualTour) visualTour(dt);
   pick();
   for (const id in npcs) npcs[id].update(dt);
   dialogue.update(dt);
@@ -313,5 +356,6 @@ function animate() {
   }
 
   renderer.render(scene, camera);
+  if (visualTour) visualTour.inspect(renderer);
 }
 animate();

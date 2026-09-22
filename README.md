@@ -70,16 +70,15 @@ classroom-ai/
 ├── frontend/
 │   ├── index.html
 │   ├── assets/
-│   │   └── characters/   # 放 GLB/VRM 模型
-│   │       ├── Soldier.glb
-│   │       └── RobotExpressive.glb
+│   │   └── characters/   # 旧角色资产（当前版本未使用）
 │   ├── css/style.css
 │   └── js/
 │       ├── main.js       # 主循环 + 交互逻辑
 │       ├── scene.js       # 教室建模
 │       ├── physics.js   # cannon-es 物理
 │       ├── player.js     # 第一人称控制
-│       ├── npc.js        # 10 个 NPC（模型 + 表情）
+│       ├── npc.js        # 10 个三维 NPC（身体 + 立体五官 + 表情）
+│       ├── visual-tour.js # 多位置全景画面巡检
 │       ├── dialogue.js    # Galgame 对话框
 │       └── audio.js      # 合成钢琴 BGM + 音效
 ├── .gitignore
@@ -87,10 +86,12 @@ classroom-ai/
 └── .env                  # 本地配置（不进 git）
 ```
 
-## 换模型
+## 画面巡检
 
-把你自己的 GLB/VRM 模型放到 `frontend/assets/characters/`，
-然后改 `frontend/js/npc.js` 里的 `loadCharacterModel()` 路径即可。
+启动服务后打开 `/?visualTour=1`，相机会沿中央和右侧过道移动，
+在两个位置环视，并显示采样画面中的暗帧数。`/?chairCheck=1`
+会对准一把椅子，可按 E 验证倾倒、落地及老师的回应。
+正常游玩请打开根路径 `/`。
 
 ## 技术栈
 

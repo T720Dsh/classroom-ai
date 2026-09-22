@@ -13,6 +13,59 @@ function Flat(color, opts = {}) {
   return new THREE.MeshBasicMaterial({ color, ...opts });
 }
 
+function surfaceTexture(kind) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = kind === 'wood' ? '#d6aa71' : '#81b6d4';
+  ctx.fillRect(0, 0, 256, 256);
+  // Fine repeatable grain/weave, visible on every desk and chair face.
+  for (let i = 0; i < 256; i++) {
+    const wave = Math.sin(i * 0.13) * 3 + Math.sin(i * 0.041) * 5;
+    ctx.strokeStyle = kind === 'wood'
+      ? (i % 5 === 0 ? 'rgba(99,57,28,.25)' : 'rgba(255,239,198,.15)')
+      : (i % 4 === 0 ? 'rgba(31,82,116,.18)' : 'rgba(232,249,255,.12)');
+    ctx.lineWidth = i % 5 === 0 ? 1.4 : 0.7;
+    ctx.beginPath();
+    if (kind === 'wood') {
+      ctx.moveTo(0, i + wave);
+      ctx.bezierCurveTo(75, i - wave, 170, i + wave, 256, i - wave);
+    } else {
+      ctx.moveTo(0, i);
+      ctx.lineTo(256, i);
+    }
+    ctx.stroke();
+    if (kind !== 'wood' && i % 4 === 0) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+function noticeTexture(title, subtitle, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fffdf4'; ctx.fillRect(0,0,512,320);
+  ctx.fillStyle = color; ctx.fillRect(0,0,512,58);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 31px sans-serif';
+  ctx.fillText(title, 28, 39);
+  ctx.fillStyle = '#47566c'; ctx.font = '25px sans-serif';
+  ctx.fillText(subtitle, 28, 112);
+  for(let i=0;i<4;i++) {
+    ctx.fillStyle = [color,'#82b6a2','#dfa76f','#88a9d4'][i];
+    ctx.fillRect(30,147+i*39,22,22);
+    ctx.fillStyle = '#bac5c8';
+    ctx.fillRect(66,155+i*39,390-i*37,6);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function mark(mesh, kind, label, extra = {}) {
   mesh.userData.interactive = true;
   mesh.userData.kind = kind;
@@ -24,6 +77,11 @@ export function buildClassroom(scene, physics) {
   const interactables = [];
   const staticColliders = [];
   const pickables = [];
+  const interactive = (mesh, kind, label) => {
+    mark(mesh, kind, label);
+    interactables.push(mesh);
+    pickables.push(mesh);
+  };
 
   // ---------- 灯光 ----------
   scene.background = new THREE.Color(0x87ceeb);
@@ -34,6 +92,7 @@ export function buildClassroom(scene, physics) {
   const sun = new THREE.DirectionalLight(0xfff0d8, 1.0);
   sun.position.set(6, 10, 5);
   scene.add(sun);
+  physics.addGround(ROOM.width, ROOM.depth);
 
   // ---------- 地板（厚板，不发黑） ----------
   const floor = new THREE.Mesh(
@@ -42,6 +101,7 @@ export function buildClassroom(scene, physics) {
   );
   floor.position.y = -0.05;
   scene.add(floor);
+  interactive(floor, 'surface', '蹲下查看地砖');
 
   // 地砖缝线
   const grid = new THREE.GridHelper(ROOM.width, 14, 0xa08050, 0xa08050);
@@ -55,6 +115,19 @@ export function buildClassroom(scene, physics) {
   );
   ceiling.position.y = ROOM.height + 0.05;
   scene.add(ceiling);
+  interactive(ceiling, 'surface', '抬头查看天花板');
+
+  // Diffuse ceiling panels remain luminous at every camera angle.
+  for (const lx of [-4.5, 0, 4.5]) {
+    for (const lz of [-2.5, 1.5]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.035, 0.55), Flat(0xfff8df));
+      panel.position.set(lx, ROOM.height - 0.04, lz);
+      scene.add(panel);
+      const lamp = new THREE.PointLight(0xfff4da, 0.22, 5.5);
+      lamp.position.set(lx, ROOM.height - 0.4, lz);
+      scene.add(lamp);
+    }
+  }
 
   // 吊顶方格线
   for (let i = -3; i <= 3; i++) {
@@ -70,6 +143,7 @@ export function buildClassroom(scene, physics) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), Flat(wallColor));
     m.position.set(x, y, z);
     scene.add(m);
+    interactive(m, 'surface', '敲了敲墙壁');
   };
   // 后墙（z=-5）
   mkWallBox(ROOM.width + wallThick*2, ROOM.height, wallThick, 0, ROOM.height/2, -ROOM.depth/2 - wallThick/2);
@@ -132,11 +206,13 @@ export function buildClassroom(scene, physics) {
     chalk.rotation.z = Math.PI/2;
     chalk.position.set(-1+i*0.15, 0.95, -ROOM.depth/2+0.12);
     scene.add(chalk);
+    interactive(chalk, 'prop', '拿起一支粉笔');
   }
   // 黑板擦
   const eraser = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.08), M(0x333333));
   eraser.position.set(1.2, 0.95, -ROOM.depth/2+0.12);
   scene.add(eraser);
+  interactive(eraser, 'prop', '拿起黑板擦');
 
   // ---------- 时钟 ----------
   const clock = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.04, 24), M(0xffffff));
@@ -172,6 +248,7 @@ export function buildClassroom(scene, physics) {
   const podiumBook = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.22), M(0x2980b9));
   podiumBook.position.set(-2.2, 1.17, -3.4);
   scene.add(podiumBook);
+  interactive(podiumBook, 'prop', '翻看讲台上的课本');
 
   // ---------- 老师讲台 ----------
   const tDesk = new THREE.Group();
@@ -191,20 +268,24 @@ export function buildClassroom(scene, physics) {
   const notebook = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.18), M(0xffd54f));
   notebook.position.set(2.3, 0.82, -3.6);
   scene.add(notebook);
+  interactive(notebook, 'prop', '翻看老师的笔记');
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.1, 12), M(0xc0392b));
   cup.position.set(2.7, 0.84, -3.6);
   scene.add(cup);
+  interactive(cup, 'prop', '碰了碰老师的水杯');
   const globe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), M(0x2980b9));
   globe.position.set(2.5, 0.9, -3.8);
   scene.add(globe);
+  interactive(globe, 'prop', '转动小地球仪');
 
   // ---------- 学生桌椅（修正高度：桌面 0.75m，椅面 0.45m） ----------
   const cols = [-4.5, -2.7, -0.9, 0.9, 2.7, 4.5];
   const rows = [-1.8, -0.4, 1.0, 2.4, 3.8];
-  const deskTopMat = M(0xe8c89a);
+  const deskTopMat = new THREE.MeshStandardMaterial({ map: surfaceTexture('wood'), roughness: 0.78 });
   const deskEdgeMat = M(0xa0724a);  // 桌面边缘包边
   const legMat = M(0x555555);
-  const chairSeatMat = M(0x8bb4d9);
+  const chairSeatMat = new THREE.MeshStandardMaterial({ map: surfaceTexture('fabric'), roughness: 0.91 });
+  const screwMat = M(0xc7cbd0);
   const dynamicProps = [];
 
   for (const z of rows) {
@@ -219,21 +300,47 @@ export function buildClassroom(scene, physics) {
       const edge = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.04, 0.03), deskEdgeMat);
       edge.position.set(0, 0.75, 0.29);
       desk.add(edge);
+      // Continuous rim, paired screws, lower book tray and ruled notebook.
+      const rearEdge = edge.clone();
+      rearEdge.position.z = -0.29;
+      desk.add(rearEdge);
+      for (const sx of [-0.39, 0.39]) {
+        for (const sz of [-0.235, 0.235]) {
+          const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.003, 8), screwMat);
+          screw.position.set(sx, 0.774, sz);
+          desk.add(screw);
+        }
+      }
       // 桌腿
       for (const [dx,dz] of [[-0.42,-0.22],[0.42,-0.22],[-0.42,0.22],[0.42,0.22]]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.75,0.04), legMat);
         leg.position.set(dx, 0.375, dz); desk.add(leg);
       }
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.018, 0.44), deskEdgeMat);
+      tray.position.y = 0.54;
+      desk.add(tray);
       // 桌肚里的书
       const bookColors = [0xc0392b, 0x2980b9, 0x27ae60, 0xf39c12];
       const book = new THREE.Mesh(new THREE.BoxGeometry(0.32,0.05,0.24),
         M(bookColors[Math.floor(Math.random()*4)]));
       book.position.set(0, 0.70, 0);
       desk.add(book);
+      interactive(book, 'prop', '翻看课桌里的书');
       // 桌面笔记本
       const nb = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.01,0.15), M(0xffe082));
       nb.position.set(0.15, 0.775, 0.1);
       desk.add(nb);
+      interactive(nb, 'prop', '翻看桌面的笔记本');
+      for (let line = 0; line < 4; line++) {
+        const rule = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.002, 0.003), M(0x7296b3));
+        rule.position.set(0.15, 0.782, 0.05 + line * 0.027);
+        desk.add(rule);
+      }
+      const pencil = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.24, 8), M(0xe29348));
+      pencil.rotation.z = Math.PI / 2;
+      pencil.position.set(-0.19, 0.779, -0.13);
+      desk.add(pencil);
+      interactive(pencil, 'prop', '拿起桌上的铅笔');
       desk.position.set(x, 0, z);
       scene.add(desk);
       mark(top, 'desk', '拉开抽屉看看');
@@ -242,26 +349,40 @@ export function buildClassroom(scene, physics) {
 
       // 椅子：椅面 0.45m，靠背 0.4m 高
       const chair = new THREE.Group();
+      const chairVisual = new THREE.Group();
+      chairVisual.position.y = -0.45; // physics body rotates about its center, not the feet
+      chair.add(chairVisual);
       const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45,0.05,0.45), chairSeatMat);
-      seat.position.y = 0.45; chair.add(seat);
+      seat.position.y = 0.45; chairVisual.add(seat);
       // 椅腿
       for (const [dx,dz] of [[-0.19,-0.19],[0.19,-0.19],[-0.19,0.19],[0.19,0.19]]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.03,0.45,0.03), legMat);
-        leg.position.set(dx, 0.225, dz); chair.add(leg);
+        leg.position.set(dx, 0.225, dz); chairVisual.add(leg);
       }
       // 靠背
       const back = new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.04), chairSeatMat);
-      back.position.set(0, 0.69, 0.21); chair.add(back);
-      chair.position.set(x, 0, z + 0.6);
+      back.position.set(0, 0.69, 0.21); chairVisual.add(back);
+      const backBorder = new THREE.Mesh(new THREE.BoxGeometry(0.49, 0.04, 0.055), deskEdgeMat);
+      backBorder.position.set(0, 0.89, 0.21);
+      chairVisual.add(backBorder);
+      for (const sx of [-0.19, 0.19]) {
+        const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), screwMat);
+        rivet.position.set(sx, 0.48, -0.205);
+        chairVisual.add(rivet);
+      }
+      chair.position.set(x, 0.45, z + 0.6);
       scene.add(chair);
       mark(seat, 'chair', '踢翻 / 抓起椅子');
-      interactables.push(seat); pickables.push(seat);
+      mark(back, 'chair', '踢翻 / 抓起椅子');
+      interactables.push(seat, back); pickables.push(seat, back);
       const chairBody = physics.addDynamicBox(chair, {
         mass: 3,
         position: new THREE.Vector3(x, 0.45, z+0.6),
         halfExtents: [0.25, 0.45, 0.25],
       });
       chairBody.body.sleep();
+      seat.userData.physics = chairBody;
+      back.userData.physics = chairBody;
       dynamicProps.push(chairBody);
     }
   }
@@ -278,6 +399,7 @@ export function buildClassroom(scene, physics) {
         M(colors[Math.floor(Math.random()*colors.length)]));
       bookMesh.position.set(-0.95+i*0.23, 0.55+lv*0.5, 0);
       shelf.add(bookMesh);
+      interactive(bookMesh, 'prop', '从书架抽出一本书');
     }
   }
   shelf.position.set(-5.5, 0, ROOM.depth/2-0.25);
@@ -302,17 +424,38 @@ export function buildClassroom(scene, physics) {
   handle.position.set(ROOM.width/2-0.15, 1.0, -2.4);
   scene.add(handle);
 
+  // Side-wall teaching displays give the right aisle readable landmarks.
+  for (const [z, title, sub, color] of [
+    [0.15, '今日课程', '数学 · 语文 · 科学', '#4c8ba1'],
+    [2.85, '班级公告', '保持整洁  自由提问', '#75a884'],
+  ]) {
+    const border = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.25, 1.94), M(0x9a704d));
+    border.position.set(ROOM.width/2-0.055, 1.88, z);
+    scene.add(border);
+    const display = new THREE.Mesh(new THREE.PlaneGeometry(1.82, 1.13),
+      new THREE.MeshBasicMaterial({ map:noticeTexture(title,sub,color), side:THREE.DoubleSide }));
+    display.rotation.y = -Math.PI/2;
+    display.position.set(ROOM.width/2-0.102, 1.88, z);
+    scene.add(display);
+    mark(display, 'poster', `查看${title}`);
+    interactables.push(display); pickables.push(display);
+  }
+
   // ---------- 窗户（带窗框和窗帘） ----------
   for (const wz of [-3, 0, 3]) {
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.8, 1.7), M(0xffffff));
-    frame.position.set(-ROOM.width/2+0.02, 1.8, wz);
-    scene.add(frame);
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.6, 1.5),
-      new THREE.MeshLambertMaterial({ color:0xaad4ff, transparent:true, opacity:0.5 }));
-    win.position.set(-ROOM.width/2+0.04, 1.8, wz);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.63, 1.53), Flat(0xb3d7ec));
+    win.position.set(-ROOM.width/2+0.09, 1.8, wz);
     scene.add(win);
+    for(const y of [0.96,1.8,2.64]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.055,1.66),M(0xf0f3ed));
+      rail.position.set(-ROOM.width/2+0.125,y,wz); scene.add(rail);
+    }
+    for(const z of [wz-0.8,wz,wz+0.8]) {
+      const stile = new THREE.Mesh(new THREE.BoxGeometry(0.055,1.72,0.055),M(0xf0f3ed));
+      stile.position.set(-ROOM.width/2+0.125,1.8,z); scene.add(stile);
+    }
     const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.5), M(0xd4a7c9));
-    curtain.position.set(-ROOM.width/2+0.1, 1.8, wz-0.65);
+    curtain.position.set(-ROOM.width/2+0.17, 1.8, wz-0.65);
     scene.add(curtain);
     mark(win, 'window', '看窗外');
     interactables.push(win); pickables.push(win);
@@ -350,6 +493,7 @@ export function buildClassroom(scene, physics) {
   const ac = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.3), M(0xffffff));
   ac.position.set(0, 3.1, ROOM.depth/2-0.15);
   scene.add(ac);
+  interactive(ac, 'prop', '调节空调');
 
   // ---------- 海报 ----------
   for (const [px,pz,color] of [
@@ -364,6 +508,17 @@ export function buildClassroom(scene, physics) {
     mark(poster, 'poster', '看看海报');
     interactables.push(poster); pickables.push(poster);
   }
+  const dutyFrame = new THREE.Mesh(new THREE.BoxGeometry(1.75, 1.18, 0.055), M(0x9a704d));
+  dutyFrame.position.set(5.15, 1.83, ROOM.depth/2-0.055);
+  scene.add(dutyFrame);
+  const dutyBoard = new THREE.Mesh(new THREE.PlaneGeometry(1.63, 1.06),
+    new THREE.MeshBasicMaterial({ map:noticeTexture('值日安排','保持教室明亮整洁','#d79b65'),
+      side:THREE.DoubleSide }));
+  dutyBoard.rotation.y = Math.PI;
+  dutyBoard.position.set(5.15, 1.83, ROOM.depth/2-0.096);
+  scene.add(dutyBoard);
+  mark(dutyBoard, 'poster', '查看值日安排');
+  interactables.push(dutyBoard); pickables.push(dutyBoard);
 
   // ---------- 植物 ----------
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.15,0.3,12), M(0xb85450));
@@ -372,6 +527,7 @@ export function buildClassroom(scene, physics) {
   const plant = new THREE.Mesh(new THREE.SphereGeometry(0.25,12,12), M(0x2e7d32));
   plant.position.set(-6.2, 0.55, 4.5);
   scene.add(plant);
+  interactive(plant, 'prop', '轻触窗边绿植');
 
   return { interactables, pickables, staticColliders, dynamicProps, ROOM };
 }

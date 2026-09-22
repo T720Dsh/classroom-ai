@@ -71,6 +71,7 @@ export class PhysicsWorld {
     if (!this.grabbed) return;
     const b = this.grabbed.body;
     b.type = CANNON.Body.DYNAMIC;
+    b.wakeUp();
     if (throwVelocity) {
       b.velocity.set(throwVelocity.x, throwVelocity.y, throwVelocity.z);
       b.angularVelocity.set(

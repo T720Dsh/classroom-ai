@@ -72,6 +72,7 @@ def get_client():
 # ---------- 对话记忆（内存） ----------
 # session_id -> { npc_id -> [ {"role","content"}, ... ] }
 SESSIONS: Dict[str, Dict[str, List[dict]]] = {}
+WORLD_EVENTS: Dict[str, List[str]] = {}
 HISTORY_LIMIT = 20  # 每个 NPC 保留最近 N 条
 
 def get_history(session_id: str, npc_id: str) -> List[dict]:
@@ -184,6 +185,17 @@ def _id_from_system(system_prompt: str) -> str:
 
 def llm_event_react(event_desc: str) -> dict:
     """让导演 LLM 决定谁反应、说什么。"""
+    # Disruptive actions need a reliable teacher response. The wording still
+    # comes from the configured language model and changes with the event.
+    if any(word in event_desc for word in ("踢翻", "椅子", "砸", "黑板", "乱涂", "吵闹")):
+        teacher = PERSONAS["teacher_wang"]
+        line = llm_chat(
+            teacher["system_prompt"], [],
+            f"[场景事件] {event_desc} 请立刻以老师身份制止，并让玩家处理造成的影响。",
+        )
+        if line.startswith("[LLM 调用失败"):
+            line = "先停下，把椅子扶起来。教室里的东西不能这样乱踢！"
+        return {"responder": "teacher_wang", "line": line}
     try:
         if RUN_MODE in ("local", "openai"):
             messages = [
@@ -247,7 +259,12 @@ def chat(req: ChatReq):
     if not persona:
         return JSONResponse({"error": f"unknown npc: {req.npc}"}, status_code=400)
     hist = get_history(sid, req.npc)
-    reply = llm_chat(persona["system_prompt"], hist, req.text)
+    recent_events = WORLD_EVENTS.get(sid, [])[-6:]
+    context = persona["system_prompt"]
+    if recent_events:
+        context += "\n【你刚刚看到的教室事件】\n" + "\n".join(recent_events)
+        context += "\n回答玩家时可以自然提到这些事，不要假装事件没有发生。"
+    reply = llm_chat(context, hist, req.text)
     push_history(sid, req.npc, "user", req.text)
     push_history(sid, req.npc, "assistant", reply)
     return {"session_id": sid, "npc": req.npc, "name": persona["name"], "reply": reply}
@@ -256,6 +273,8 @@ def chat(req: ChatReq):
 @app.post("/api/event")
 def event_react(req: EventReq):
     sid = req.session_id or uuid.uuid4().hex[:12]
+    WORLD_EVENTS.setdefault(sid, []).append(req.event)
+    WORLD_EVENTS[sid] = WORLD_EVENTS[sid][-10:]
     result = llm_event_react(req.event)
     rid = result["responder"]
     persona = PERSONAS.get(rid)

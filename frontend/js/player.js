@@ -11,6 +11,7 @@ export class Player {
     this.camera = camera;
     this.dom = domElement;
     this.colliders = colliders;
+    this.dynamicColliders = () => [];
     this.room = room;
 
     this.yaw = 0;
@@ -57,10 +58,14 @@ export class Player {
     }
   }
 
+  setDynamicColliders(getColliders) {
+    this.dynamicColliders = getColliders;
+  }
+
   _collide(newPos) {
     // 检查与 AABB 碰撞盒
     const r = PLAYER_RADIUS;
-    for (const c of this.colliders) {
+    for (const c of [...this.colliders, ...this.dynamicColliders()]) {
       if (
         newPos.x + r > c.minX && newPos.x - r < c.maxX &&
         newPos.z + r > c.minZ && newPos.z - r < c.maxZ
@@ -78,6 +83,24 @@ export class Player {
   }
 
   update(dt) {
+    // A thrown chair can move into the player even while the player stands still.
+    for (const c of this.dynamicColliders()) {
+      const r = PLAYER_RADIUS;
+      if (this.position.x+r <= c.minX || this.position.x-r >= c.maxX ||
+          this.position.z+r <= c.minZ || this.position.z-r >= c.maxZ) continue;
+      const candidates = [
+        { x:c.minX-r-0.01, z:this.position.z },
+        { x:c.maxX+r+0.01, z:this.position.z },
+        { x:this.position.x, z:c.minZ-r-0.01 },
+        { x:this.position.x, z:c.maxZ+r+0.01 },
+      ].sort((a,b) =>
+        (a.x-this.position.x)**2+(a.z-this.position.z)**2 -
+        ((b.x-this.position.x)**2+(b.z-this.position.z)**2));
+      for (const p of candidates) {
+        const next = new THREE.Vector3(p.x, this.position.y, p.z);
+        if (!this._collide(next)) { this.position.copy(next); break; }
+      }
+    }
     // 方向向量（基于 yaw）
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right   = new THREE.Vector3(-forward.z, 0, forward.x);

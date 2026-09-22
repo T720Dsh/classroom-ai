@@ -80,16 +80,18 @@ export class Audio {
 
     let progIdx = 0;
     let step = 0;
+    let phrase = 0;
 
     const playChord = () => {
       if (!this.started) return;
       const prog = progressions[progIdx % progressions.length];
       const chord = prog[step % prog.length];
 
-      // 低音
-      chord.forEach((f, i) => this._pianoNote(f/2, 2.5, 0.2, i*0.05));
-      // 和弦音
-      chord.forEach((f, i) => this._pianoNote(f, 1.8, 0.18, i*0.1));
+      // Rotate voicings and dynamics so repeated progressions do not sound identical.
+      const softness = [0.78, 0.95, 0.87, 1.06][step % 4];
+      chord.forEach((f, i) => this._pianoNote(f/2, 2.5, 0.14*softness, i*0.06));
+      chord.forEach((f, i) => this._pianoNote(f * (phrase % 3 === 2 && i === 2 ? 2 : 1),
+        1.8, 0.13*softness, i*0.11));
 
       // 旋律琶音（每段不同）
       const arpPatterns = [
@@ -98,19 +100,21 @@ export class Audio {
         [1, 3, 5, 3, 1],
         [2, 3, 1, 3, 2],
       ];
-      const arp = arpPatterns[progIdx % arpPatterns.length];
+      const arp = arpPatterns[(progIdx + phrase) % arpPatterns.length];
       arp.forEach((mult, i) => {
-        this._pianoNote(chord[0] * mult, 1.2, 0.1, 1.5 + i*0.3);
+        if (phrase % 4 === 3 && i === 2) return; // occasional breath in the melody
+        this._pianoNote(chord[(i + phrase) % 3] * (mult > 3 ? 2 : 1),
+          0.9 + (i % 2)*0.25, 0.07*softness, 1.35 + i*0.34);
       });
 
       // 偶尔加高音装饰
       if (step % 4 === 2) {
-        this._pianoNote(chord[2] * 2, 2.0, 0.08, 2.8);
+        this._pianoNote(chord[2] * 2, 1.7, 0.045, 2.8);
       }
 
       step++;
-      if (step % 4 === 0) progIdx++;
-      setTimeout(playChord, 4200);
+      if (step % 4 === 0) { progIdx++; phrase++; }
+      setTimeout(playChord, [4100, 3900, 4300, 4000][phrase % 4]);
     };
     playChord();
   }

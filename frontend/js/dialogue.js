@@ -19,6 +19,7 @@ export class Dialogue {
 
     this.camGoalPos = null;
     this.camGoalLook = null;
+    this.turnTarget = new THREE.Object3D();
 
     this._bind();
   }
@@ -49,14 +50,9 @@ export class Dialogue {
     this.box.classList.remove('hidden');
 
     const npcPos = npc.group.position;
-    const dx = playerPos.x - npcPos.x;
-    const dz = playerPos.z - npcPos.z;
-    const len = Math.sqrt(dx*dx + dz*dz) || 1;
-    this.camGoalPos = new THREE.Vector3(
-      npcPos.x + (dx/len)*1.8,
-      1.6,
-      npcPos.z + (dz/len)*1.8
-    );
+    // Keep the viewpoint at the player's collision-safe position. Moving the
+    // camera through desks or other characters caused close-up clipping.
+    this.camGoalPos = playerPos.clone();
     this.camGoalLook = npcPos.clone();
     this.camGoalLook.y = 1.5;
 
@@ -83,6 +79,10 @@ export class Dialogue {
   }
 
   close() {
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    this.player.yaw = Math.atan2(-direction.x, -direction.z);
+    this.player.pitch = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
     this.active = false;
     this.currentNpc = null;
     this.box.classList.add('hidden');
@@ -93,8 +93,10 @@ export class Dialogue {
 
   update(dt) {
     if (this.camGoalPos) {
-      this.camera.position.lerp(this.camGoalPos, Math.min(1, dt*3));
-      this.camera.lookAt(this.camGoalLook);
+      this.camera.position.copy(this.camGoalPos);
+      this.turnTarget.position.copy(this.camera.position);
+      this.turnTarget.lookAt(this.camGoalLook);
+      this.camera.quaternion.slerp(this.turnTarget.quaternion, Math.min(1, dt*3));
     }
   }
 }
