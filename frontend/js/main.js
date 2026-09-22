@@ -1,11 +1,11 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js?v=17';
-import { PhysicsWorld } from './physics.js?v=17';
-import { Player } from './player.js?v=17';
-import { buildAllNPCs } from './npc.js?v=17';
-import { Dialogue } from './dialogue.js?v=17';
-import { Audio } from './audio.js?v=17';
+import { buildClassroom } from './scene.js?v=18';
+import { PhysicsWorld } from './physics.js?v=18';
+import { Player } from './player.js?v=18';
+import { buildAllNPCs } from './npc.js?v=18';
+import { Dialogue } from './dialogue.js?v=18';
+import { Audio } from './audio.js?v=18';
 import { createVisualTour } from './visual-tour.js';
 import * as CANNON from 'cannon-es';
 
@@ -61,6 +61,7 @@ player.setDynamicColliders(() => {
   return blocks;
 });
 const dialogue = new Dialogue(camera, player);
+window.__dialogue = dialogue;
 const audio = new Audio();
 
 const speechLayer = document.getElementById('speech-layer');
@@ -165,18 +166,22 @@ function updateBubbles() {
 }
 
 // ---------- 事件 ----------
+let eventReqSeq = 0;
 function triggerEvent(desc, sfx) {
   if (sfx && audio[sfx]) audio[sfx]();
-  showEventToast('教室', '大家注意到了动静，正在回应…', 0);
+  showEventToast('教室', '大家注意到了动静…', 0);
+  const seq = ++eventReqSeq;
   api('/api/event', { session_id: sessionId, event: desc }).then(res => {
+    if (seq !== eventReqSeq) return;
     if (res.error) { eventToast.classList.add('hidden'); return; }
     sessionId = res.session_id;
     const npc = npcs[res.responder];
     if (!npc) { eventToast.classList.add('hidden'); return; }
     npc.faceTo(player.position);
-    npc.guessExpression(res.line);
-    showBubble(npc, res.line);
-    showEventToast(npc.name, res.line);
+    const line = (res.line || '……').trim();
+    npc.guessExpression(line);
+    showBubble(npc, line);
+    showEventToast(npc.name, line);
   }).catch(e => {
     eventToast.classList.add('hidden');
     console.warn('event', e);
@@ -184,6 +189,7 @@ function triggerEvent(desc, sfx) {
 }
 
 // ---------- 对话 ----------
+window.__startDialogue = startDialogue;
 const OPENERS = {
   teacher_wang: '这位同学，你是哪个班的？怎么跑到我们教室来了？',
   li_ming: '我去，你谁啊？新来的？',
@@ -202,21 +208,47 @@ function startDialogue(npc) {
   dialogue.open(npc, player.position);
   npc.faceTo(player.position);
   npc.setExpression('neutral');
-  dialogue.showLine(OPENERS[npc.id] || '你好。', { allowInput: true });
+  dialogue.showOpening(OPENERS[npc.id] || '你好。');
+
+  let lastUserText = '';
 
   dialogue.onSubmit = async (text) => {
-    audio.click();
-    dialogue.showLine('……', { allowInput: false });
+    lastUserText = text;
+    const reqId = dialogue._requestId;
+    dialogue.setGenerating();
     npc.setExpression('thinking');
     try {
       const res = await api('/api/chat', { session_id: sessionId, npc: npc.id, text });
+      if (reqId !== dialogue._requestId || dialogue.currentNpc?.id !== npc.id) return;
       sessionId = res.session_id;
-      npc.guessExpression(res.reply);
-      dialogue.showLine(res.reply, { allowInput: true });
+      let reply = (res.reply || '').trim();
+      // Clean up: reject empty / pure ellipsis
+      if (!reply || /^[.。…\s]+$/.test(reply)) {
+        reply = await _retryChat(npc.id, text, reqId);
+      }
+      npc.guessExpression(reply);
+      dialogue.showReply(reply);
     } catch (e) {
-      dialogue.showLine('（耳机里传来电流声……）', { allowInput: true });
+      if (reqId !== dialogue._requestId) return;
+      dialogue.showError('（信号不太好，再试一次？）');
+      dialogue.onRetry = () => startDialogue(npc);
     }
   };
+}
+
+async function _retryChat(npcId, text, reqId) {
+  try {
+    const res = await api('/api/chat', { session_id: sessionId, npc: npcId, text });
+    if (reqId !== dialogue._requestId) return '……';
+    sessionId = res.session_id;
+    const reply = (res.reply || '').trim();
+    if (!reply || /^[.。…\s]+$/.test(reply)) {
+      return '……（他似乎在思考，没有马上回答）';
+    }
+    return reply;
+  } catch {
+    return '……（他似乎在思考，没有马上回答）';
+  }
 }
 
 // ---------- 交互 ----------
@@ -333,6 +365,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
 const clock = new THREE.Clock();
 async function init() {
   npcs = await buildAllNPCs(scene);
+  window.__npcs = npcs;
   fetchState();
   if (!visualTour && !chairCheck) setTimeout(() => document.getElementById('help-overlay').classList.remove('hidden'), 400);
 }

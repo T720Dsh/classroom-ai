@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <title>AI 教室 — Classroom AI</title>
-<link rel="stylesheet" href="/static/css/style.css?v=17" />
+<link rel="stylesheet" href="/static/css/style.css?v=18" />
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
@@ -55,6 +55,11 @@
     <button id="dialogue-close" title="退出对话">✕</button>
     <div id="dialogue-name">???</div>
     <div id="dialogue-text"></div>
+    <div id="dialogue-thinking" class="hidden">
+      <span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>
+      <span class="thinking-label">正在思考…</span>
+    </div>
+    <button id="dialogue-retry" class="hidden">重试</button>
     <div id="dialogue-continue">▼</div>
     <div id="dialogue-input-row" class="hidden">
       <input id="dialogue-input" type="text" placeholder="输入你的话，回车发送…" autocomplete="off" />
@@ -70,6 +75,6 @@
     }
   }
   </script>
-  <script type="module" src="/static/js/main.js?v=17"></script>
+  <script type="module" src="/static/js/main.js?v=18"></script>
 </body>
 </html>

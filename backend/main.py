@@ -50,9 +50,9 @@ def get_local_llm():
         from llama_cpp import Llama
         _local_llm = Llama(
             model_path=LOCAL_MODEL_PATH,
-            n_ctx=4096,
-            n_threads=8,
-            n_gpu_layers=-1,   # 有 GPU 就全卸
+            n_ctx=2048,
+            n_threads=6,
+            n_gpu_layers=0,
             verbose=False,
         )
     return _local_llm
@@ -146,18 +146,70 @@ def mock_reply(npc_id: str) -> str:
     return lines[i]
 
 
+# ---------- LLM 输出清理 ----------
+import re
+
+def clean_llm_output(text: str) -> str:
+    """Remove thinking tags, JSON wrappers, role prefixes, etc."""
+    if not text:
+        return ""
+    t = text.strip()
+    # Remove markdown code fences
+    if t.startswith("```"):
+        lines = t.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        t = "\n".join(lines).strip()
+    # Remove <think>...</think> blocks
+    t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL).strip()
+    # Remove common role prefixes
+    t = re.sub(r"^(王老师|李明|张雪|陈浩|林青|王芳|赵磊|孙杰|周敏|吴鹏)[：:]\s*", "", t)
+    t = re.sub(r"^(teacher_wang|li_ming|zhang_xue|chen_hao|lin_qing|wang_fang|zhao_lei|sun_jie|zhou_min|wu_peng)[：:]\s*", "", t)
+    t = re.sub(r"^(assistant|user|system)[：:]\s*", "", t, flags=re.IGNORECASE)
+    # If it looks like JSON, try to extract "line" field
+    if t.startswith("{") and t.endswith("}"):
+        try:
+            data = json.loads(t)
+            if "line" in data:
+                return str(data["line"]).strip()
+        except Exception:
+            pass
+    # Remove surrounding quotes
+    t = t.strip().strip('"').strip("'").strip()
+    # If pure ellipsis / punctuation / whitespace, mark as empty
+    if re.match(r"^[.。…·\s\-—~～!！?？,，.。]+$", t):
+        return ""
+    return t.strip()
+
+
+def is_good_reply(text: str) -> bool:
+    """Check if reply is usable (not empty, not pure ellipsis)."""
+    if not text:
+        return False
+    t = text.strip()
+    if not t:
+        return False
+    if re.match(r"^[.。…·\s]+$", t):
+        return False
+    return True
+
+
 # ---------- LLM 调用 ----------
-def _local_generate(messages: list, max_tokens: int = 120, temperature: float = 1.0) -> str:
+def _local_generate(messages: list, max_tokens: int = 80, temperature: float = 0.8) -> str:
     llm = get_local_llm()
     resp = llm.create_chat_completion(
         messages=messages,
         temperature=temperature,
         top_p=0.9,
-        frequency_penalty=0.6,
-        presence_penalty=0.3,
+        frequency_penalty=0.7,
+        presence_penalty=0.4,
         max_tokens=max_tokens,
     )
-    return resp["choices"][0]["message"]["content"].strip()
+    raw = resp["choices"][0]["message"]["content"] or ""
+    return clean_llm_output(raw)
+
 
 def llm_chat(system_prompt: str, history: List[dict], user_text: str) -> str:
     messages = [{"role": "system", "content": system_prompt}]
@@ -165,13 +217,16 @@ def llm_chat(system_prompt: str, history: List[dict], user_text: str) -> str:
     messages.append({"role": "user", "content": user_text})
     try:
         if RUN_MODE == "local":
-            return _local_generate(messages, max_tokens=120)
+            result = _local_generate(messages, max_tokens=80)
+            if not is_good_reply(result):
+                result = _local_generate(messages, max_tokens=80, temperature=0.9)
+            return result if is_good_reply(result) else "……（他似乎在思考，没有马上回答）"
         elif RUN_MODE == "openai":
             client = get_client()
             resp = client.chat.completions.create(
-                model=LLM_MODEL, messages=messages, temperature=0.9, max_tokens=120,
+                model=LLM_MODEL, messages=messages, temperature=0.8, max_tokens=150,
             )
-            return resp.choices[0].message.content.strip()
+            return clean_llm_output(resp.choices[0].message.content or "")
         else:
             return mock_reply(_id_from_system(system_prompt))
     except Exception as e:
@@ -185,15 +240,13 @@ def _id_from_system(system_prompt: str) -> str:
 
 def llm_event_react(event_desc: str) -> dict:
     """让导演 LLM 决定谁反应、说什么。"""
-    # Disruptive actions need a reliable teacher response. The wording still
-    # comes from the configured language model and changes with the event.
     if any(word in event_desc for word in ("踢翻", "椅子", "砸", "黑板", "乱涂", "吵闹")):
         teacher = PERSONAS["teacher_wang"]
         line = llm_chat(
             teacher["system_prompt"], [],
             f"[场景事件] {event_desc} 请立刻以老师身份制止，并让玩家处理造成的影响。",
         )
-        if line.startswith("[LLM 调用失败"):
+        if not is_good_reply(line):
             line = "先停下，把椅子扶起来。教室里的东西不能这样乱踢！"
         return {"responder": "teacher_wang", "line": line}
     try:
@@ -208,20 +261,27 @@ def llm_event_react(event_desc: str) -> dict:
                 client = get_client()
                 resp = client.chat.completions.create(
                     model=LLM_MODEL, messages=messages, temperature=0.8, max_tokens=150,
-                    response_format={"type": "json_object"},
                 )
-                raw = resp.choices[0].message.content.strip()
-            # 提取 JSON（模型可能加了 markdown 代码块）
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-            data = json.loads(raw)
-            rid = data.get("responder", "li_ming")
-            if rid not in PERSONAS:
-                rid = "li_ming"
-            return {"responder": rid, "line": data.get("line", "……")}
+                raw = clean_llm_output(resp.choices[0].message.content or "")
+            data = None
+            try:
+                raw_json = raw
+                if raw_json.startswith("```"):
+                    raw_json = raw_json.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                data = json.loads(raw_json)
+            except Exception:
+                pass
+            if data:
+                rid = data.get("responder", "li_ming")
+                if rid not in PERSONAS:
+                    rid = "li_ming"
+                line = str(data.get("line", "")).strip()
+                if not is_good_reply(line):
+                    line = mock_reply(rid)
+                return {"responder": rid, "line": line}
+            # Fallback: use raw text as li_ming reaction
+            return {"responder": "li_ming", "line": raw if is_good_reply(raw) else mock_reply("li_ming")}
         else:
-            # mock
             import random
             if any(k in event_desc for k in ["踢", "摔", "吵", "乱", "砸", "推", "门", "黑板"]):
                 rid = "teacher_wang"
@@ -229,7 +289,7 @@ def llm_event_react(event_desc: str) -> dict:
                 rid = random.choice(["li_ming", "zhao_lei", "zhou_min", "chen_hao", "wang_fang"])
             return {"responder": rid, "line": mock_reply(rid)}
     except Exception as e:
-        return {"responder": "li_ming", "line": f"[事件反应失败: {e}]"}
+        return {"responder": "li_ming", "line": "……（教室里安静了一瞬）"}
 
 
 # ---------- API ----------
