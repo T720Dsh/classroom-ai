@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# Local env
+.env
+
+# Model files (too large for git)
+*.gguf
+*.bin
+*.safetensors
+../models/
+
+# Node
+node_modules/
+
+# VS Code
+.vscode/
+!.vscode/launch.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log

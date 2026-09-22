@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>AI 教室 — Classroom AI</title>
+<link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <div id="crosshair"></div>
+  <div id="interact-hint" class="hidden"><kbd>E</kbd> <span id="interact-label">交互</span></div>
+
+  <div id="top-bar">
+    <span id="mode-badge">加载中…</span>
+    <button id="mute-btn" title="静音">🔊</button>
+    <button id="help-btn" title="帮助">?</button>
+  </div>
+
+  <div id="help-overlay" class="hidden">
+    <div class="help-card">
+      <h2>操作说明</h2>
+      <ul>
+        <li><b>W A S D</b> — 移动</li>
+        <li><b>鼠标</b> — 转视角（点击画面锁定）</li>
+        <li><b>E</b> — 与准星指向的物体/NPC 交互</li>
+        <li><b>按住 E / 左键拖拽</b> — 抓/扔物体</li>
+        <li><b>T / Enter</b> — 与准星指向的 NPC 对话</li>
+        <li><b>Esc</b> — 释放鼠标 / 退出对话</li>
+      </ul>
+      <p style="margin-top:12px;color:#888">踢翻椅子、在黑板乱涂、扔东西——10 个 AI 角色会各自反应。</p>
+      <button id="help-close">知道了</button>
+    </div>
+  </div>
+
+  <div id="speech-layer"></div>
+
+  <!-- Galgame 对话框 -->
+  <div id="dialogue-box" class="hidden">
+    <div id="dialogue-name">???</div>
+    <div id="dialogue-text"></div>
+    <div id="dialogue-continue">▼</div>
+    <div id="dialogue-input-row" class="hidden">
+      <input id="dialogue-input" type="text" placeholder="输入你的话，回车发送…" autocomplete="off" />
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+    }
+  }
+  </script>
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
