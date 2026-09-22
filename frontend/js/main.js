@@ -1,11 +1,11 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js?v=16';
-import { PhysicsWorld } from './physics.js?v=16';
-import { Player } from './player.js?v=16';
-import { buildAllNPCs } from './npc.js?v=16';
-import { Dialogue } from './dialogue.js?v=16';
-import { Audio } from './audio.js?v=16';
+import { buildClassroom } from './scene.js?v=17';
+import { PhysicsWorld } from './physics.js?v=17';
+import { Player } from './player.js?v=17';
+import { buildAllNPCs } from './npc.js?v=17';
+import { Dialogue } from './dialogue.js?v=17';
+import { Audio } from './audio.js?v=17';
 import { createVisualTour } from './visual-tour.js';
 import * as CANNON from 'cannon-es';
 
@@ -14,7 +14,8 @@ const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = false;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NoToneMapping;
 THREE.ColorManagement.enabled = false;
 window.__renderer = renderer;

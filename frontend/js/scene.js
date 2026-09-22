@@ -83,15 +83,27 @@ export function buildClassroom(scene, physics) {
     pickables.push(mesh);
   };
 
-  // ---------- 灯光 ----------
+  // ---------- 灯光（自然日光 + 室内顶灯） ----------
   scene.background = new THREE.Color(0x87ceeb);
   scene.fog = null;
-  scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-  const hemi = new THREE.HemisphereLight(0xfff5e0, 0x886644, 0.8);
+  scene.add(new THREE.AmbientLight(0xfff8f0, 1.2));
+  const hemi = new THREE.HemisphereLight(0xfff8e8, 0xc8a878, 0.7);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff0d8, 1.0);
-  sun.position.set(6, 10, 5);
+  const sun = new THREE.DirectionalLight(0xfff5e0, 0.9);
+  sun.position.set(-8, 6, 3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -10;
+  sun.shadow.camera.right = 10;
+  sun.shadow.camera.top = 10;
+  sun.shadow.camera.bottom = -10;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 30;
+  sun.shadow.bias = -0.001;
   scene.add(sun);
+  const ceilingLight = new THREE.PointLight(0xfff0d8, 0.5, 15, 1.5);
+  ceilingLight.position.set(0, 3.2, 0);
+  scene.add(ceilingLight);
   physics.addGround(ROOM.width, ROOM.depth);
 
   // ---------- 地板（厚板，不发黑） ----------
