@@ -137,20 +137,17 @@ export class NPC {
     const model = gltf.scene.clone(true);
     model.scale.setScalar(1.0);
 
-    // 染色
+    // 染色：直接给所有材质上角色色（skinned mesh 的 mesh position 都是 0，不能按位置分）
     model.traverse((o) => {
       if (o.isMesh) {
         o.castShadow = true;
         if (o.material) {
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           mats.forEach((m) => {
-            if (o.position.y > 0.6) {
-              m.color = new THREE.Color(def.shirt);
-            } else {
-              m.color = new THREE.Color(def.pants);
-            }
+            m.color = new THREE.Color(def.shirt);
             m.metalness = 0.1;
             m.roughness = 0.8;
+            m.side = THREE.DoubleSide;
           });
         }
       }

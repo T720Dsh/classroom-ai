@@ -146,12 +146,14 @@ def mock_reply(npc_id: str) -> str:
 
 
 # ---------- LLM 调用 ----------
-def _local_generate(messages: list, max_tokens: int = 120, temperature: float = 0.9) -> str:
+def _local_generate(messages: list, max_tokens: int = 120, temperature: float = 1.0) -> str:
     llm = get_local_llm()
-    # llama-cpp-python 的 create_chat_completion 接受 messages
     resp = llm.create_chat_completion(
         messages=messages,
         temperature=temperature,
+        top_p=0.9,
+        frequency_penalty=0.6,
+        presence_penalty=0.3,
         max_tokens=max_tokens,
     )
     return resp["choices"][0]["message"]["content"].strip()
@@ -278,11 +280,16 @@ def state():
 # ---------- 静态前端 ----------
 FRONTEND = ROOT / "frontend"
 if FRONTEND.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
-
     @app.get("/")
     def index():
-        return FileResponse(FRONTEND / "index.html")
+        return FileResponse(FRONTEND / "index.html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+    @app.get("/static/{path:path}")
+    def static_no_cache(path: str):
+        full = FRONTEND / path
+        if full.exists() and full.is_file():
+            return FileResponse(full, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+        return JSONResponse({"error": "not found"}, status_code=404)
 
 
 if __name__ == "__main__":

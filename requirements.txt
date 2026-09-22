@@ -3,4 +3,5 @@ uvicorn[standard]>=0.29.0
 openai>=1.30.0
 python-dotenv>=1.0.1
 pydantic>=2.7.0
-llama-cpp-python
+# llama-cpp-python 需要单独安装预编译 wheel:
+# pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu

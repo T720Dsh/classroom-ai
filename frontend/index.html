@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <title>AI 教室 — Classroom AI</title>
-<link rel="stylesheet" href="/static/css/style.css" />
+<link rel="stylesheet" href="/static/css/style.css?v=9" />
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
@@ -17,6 +17,18 @@
     <button id="help-btn" title="帮助">?</button>
   </div>
 
+  <!-- 开始菜单 -->
+  <div id="start-menu">
+    <div class="menu-card">
+      <h1>AI 教室</h1>
+      <p class="subtitle">10 个 AI 角色 · 自由探索 · 无固定剧情</p>
+      <button id="start-btn">开始游戏</button>
+      <div class="menu-help">
+        <p><b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>E</b> 交互 · <b>T</b> 对话 · <b>M</b> 静音</p>
+      </div>
+    </div>
+  </div>
+
   <div id="help-overlay" class="hidden">
     <div class="help-card">
       <h2>操作说明</h2>
@@ -24,8 +36,8 @@
         <li><b>W A S D</b> — 移动</li>
         <li><b>鼠标</b> — 转视角（点击画面锁定）</li>
         <li><b>E</b> — 与准星指向的物体/NPC 交互</li>
-        <li><b>按住 E / 左键拖拽</b> — 抓/扔物体</li>
-        <li><b>T / Enter</b> — 与准星指向的 NPC 对话</li>
+        <li><b>鼠标左键拖拽</b> — 抓/扔物体</li>
+        <li><b>T / Enter</b> — 与 NPC 对话</li>
         <li><b>Esc</b> — 释放鼠标 / 退出对话</li>
       </ul>
       <p style="margin-top:12px;color:#888">踢翻椅子、在黑板乱涂、扔东西——10 个 AI 角色会各自反应。</p>
@@ -37,6 +49,7 @@
 
   <!-- Galgame 对话框 -->
   <div id="dialogue-box" class="hidden">
+    <button id="dialogue-close" title="退出对话">✕</button>
     <div id="dialogue-name">???</div>
     <div id="dialogue-text"></div>
     <div id="dialogue-continue">▼</div>
@@ -54,6 +67,6 @@
     }
   }
   </script>
-  <script type="module" src="/static/js/main.js"></script>
+  <script type="module" src="/static/js/main.js?v=9"></script>
 </body>
 </html>

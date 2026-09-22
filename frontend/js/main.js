@@ -1,19 +1,21 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js';
-import { PhysicsWorld } from './physics.js';
-import { Player } from './player.js';
-import { buildAllNPCs } from './npc.js';
-import { Dialogue } from './dialogue.js';
-import { Audio } from './audio.js';
+import { buildClassroom } from './scene.js?v=9';
+import { PhysicsWorld } from './physics.js?v=9';
+import { Player } from './player.js?v=9';
+import { buildAllNPCs } from './npc.js?v=9';
+import { Dialogue } from './dialogue.js?v=9';
+import { Audio } from './audio.js?v=9';
 import * as CANNON from 'cannon-es';
 
 // ---------- 基础 ----------
 const canvas = document.getElementById('game-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false;
+renderer.toneMapping = THREE.NoToneMapping;
+window.__renderer = renderer;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
@@ -27,6 +29,7 @@ window.addEventListener('resize', () => {
 // ---------- 系统 ----------
 const physics = new PhysicsWorld();
 const room = buildClassroom(scene, physics);
+window.__scene = scene; // debug
 const player = new Player(camera, canvas, room.staticColliders, room.ROOM);
 const dialogue = new Dialogue(camera, player);
 const audio = new Audio();
@@ -271,6 +274,13 @@ document.getElementById('help-btn').addEventListener('click', () => {
 document.getElementById('mute-btn').addEventListener('click', () => {
   const m = audio.toggleMute();
   document.getElementById('mute-btn').textContent = m ? '🔇' : '🔊';
+});
+
+// ---------- 开始菜单 ----------
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-menu').classList.add('hidden');
+  audio.startBGM();
+  canvas.requestPointerLock();
 });
 
 // ---------- 主循环 ----------

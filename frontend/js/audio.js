@@ -1,4 +1,4 @@
-// audio.js — 合成钢琴 BGM + 音效（无需外部音频文件）
+// audio.js — 合成钢琴 BGM（多变版）+ 音效
 export class Audio {
   constructor() {
     this.ctx = null;
@@ -15,15 +15,15 @@ export class Audio {
     this.master.gain.value = 0.5;
     this.master.connect(this.ctx.destination);
 
-    // 简单混响
+    // 混响
     this.reverb = this.ctx.createConvolver ? this.ctx.createConvolver() : null;
     if (this.reverb) {
-      this.reverb.buffer = this._makeImpulse(2.5, 2.5);
+      this.reverb.buffer = this._makeImpulse(2.8, 3.0);
       this.reverb.connect(this.master);
     }
 
     this.bgmGain = this.ctx.createGain();
-    this.bgmGain.gain.value = 0.25;
+    this.bgmGain.gain.value = 0.22;
     this.bgmGain.connect(this.master);
     if (this.reverb) this.bgmGain.connect(this.reverb);
   }
@@ -46,28 +46,71 @@ export class Audio {
     if (this.started) return;
     this.started = true;
 
-    // 舒缓古典钢琴和弦进行：Am - F - C - G
-    // 频率（Hz）
-    const chords = [
-      [220.00, 261.63, 329.63],  // Am
-      [174.61, 220.00, 261.63],  // F
-      [261.63, 329.63, 392.00],  // C
-      [196.00, 246.94, 293.66],  // G
+    // 多段和弦进行，循环变化
+    const progressions = [
+      // 段1：Am - F - C - G（温柔）
+      [
+        [220.00, 261.63, 329.63],
+        [174.61, 220.00, 261.63],
+        [261.63, 329.63, 392.00],
+        [196.00, 246.94, 293.66],
+      ],
+      // 段2：Dm - Bb - F - C（明亮）
+      [
+        [293.66, 349.23, 440.00],
+        [233.08, 293.66, 349.23],
+        [174.61, 220.00, 261.63],
+        [261.63, 329.63, 392.00],
+      ],
+      // 段3：Em - C - G - D（略带忧郁）
+      [
+        [329.63, 392.00, 493.88],
+        [261.63, 329.63, 392.00],
+        [196.00, 246.94, 293.66],
+        [293.66, 369.99, 440.00],
+      ],
+      // 段4：F - Am - Dm - G（收尾回到温柔）
+      [
+        [174.61, 220.00, 261.63],
+        [220.00, 261.63, 329.63],
+        [293.66, 349.23, 440.00],
+        [196.00, 246.94, 293.66],
+      ],
     ];
+
+    let progIdx = 0;
     let step = 0;
+
     const playChord = () => {
       if (!this.started) return;
-      const chord = chords[step % chords.length];
-      chord.forEach((freq, i) => {
-        this._pianoNote(freq, 1.8, 0.25, i*0.08);
+      const prog = progressions[progIdx % progressions.length];
+      const chord = prog[step % prog.length];
+
+      // 低音
+      chord.forEach((f, i) => this._pianoNote(f/2, 2.5, 0.2, i*0.05));
+      // 和弦音
+      chord.forEach((f, i) => this._pianoNote(f, 1.8, 0.18, i*0.1));
+
+      // 旋律琶音（每段不同）
+      const arpPatterns = [
+        [1, 2, 3, 2, 1],
+        [3, 2, 1, 2, 3],
+        [1, 3, 5, 3, 1],
+        [2, 3, 1, 3, 2],
+      ];
+      const arp = arpPatterns[progIdx % arpPatterns.length];
+      arp.forEach((mult, i) => {
+        this._pianoNote(chord[0] * mult, 1.2, 0.1, 1.5 + i*0.3);
       });
-      // 高音琶音
-      const arp = [440, 523.25, 659.25, 523.25];
-      arp.forEach((f, i) => {
-        this._pianoNote(f, 1.0, 0.12, 1.2 + i*0.25);
-      });
+
+      // 偶尔加高音装饰
+      if (step % 4 === 2) {
+        this._pianoNote(chord[2] * 2, 2.0, 0.08, 2.8);
+      }
+
       step++;
-      setTimeout(playChord, 4000);
+      if (step % 4 === 0) progIdx++;
+      setTimeout(playChord, 4200);
     };
     playChord();
   }
@@ -96,7 +139,6 @@ export class Audio {
     osc.stop(t + dur); osc2.stop(t + dur);
   }
 
-  // 音效：敲击
   knock() {
     this._ensure();
     const t = this.ctx.currentTime;
@@ -111,11 +153,9 @@ export class Audio {
     osc.start(t); osc.stop(t + 0.15);
   }
 
-  // 音效：椅子倒地
   chairFall() {
     this._ensure();
     const t = this.ctx.currentTime;
-    // 噪声 burst
     const rate = this.ctx.sampleRate;
     const buf = this.ctx.createBuffer(1, rate*0.3, rate);
     const d = buf.getChannelData(0);
@@ -130,7 +170,6 @@ export class Audio {
     src.start(t);
   }
 
-  // 音效：UI 点击
   click() {
     this._ensure();
     const t = this.ctx.currentTime;

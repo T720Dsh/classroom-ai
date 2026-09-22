@@ -91,4 +91,46 @@ body { user-select: none; }
 }
 #dialogue-input:focus { border-color: #4a90e2; }
 
+/* 对话关闭按钮 */
+#dialogue-close {
+  position: absolute; top: 10px; right: 14px;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.15); color: #fff;
+  font-size: 14px; cursor: pointer;
+}
+#dialogue-close:hover { background: rgba(255,255,255,0.3); }
+
+/* 开始菜单 */
+#start-menu {
+  position: fixed; inset: 0; z-index: 200;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+#start-menu .menu-card {
+  text-align: center; padding: 40px;
+}
+#start-menu h1 {
+  font-size: 56px; font-weight: bold;
+  background: linear-gradient(90deg, #4a90e2, #82b1ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+#start-menu .subtitle {
+  font-size: 18px; color: #aaa; margin-bottom: 32px;
+}
+#start-btn {
+  padding: 14px 48px; font-size: 20px; font-weight: bold;
+  background: linear-gradient(90deg, #4a90e2, #6ab0ff);
+  color: #fff; border: none; border-radius: 10px;
+  cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(74,144,226,0.4);
+}
+#start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(74,144,226,0.6);
+}
+.menu-help {
+  margin-top: 32px; color: #888; font-size: 14px;
+}
+
 .hidden { display: none !important; }
