@@ -25,13 +25,13 @@ export function buildClassroom(scene, physics) {
   const staticColliders = [];
   const pickables = [];
 
-  // ---------- 灯光（只影响桌椅等小物件） ----------
+  // ---------- 灯光 ----------
   scene.background = new THREE.Color(0x87ceeb);
   scene.fog = null;
-  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-  const hemi = new THREE.HemisphereLight(0xfff5e0, 0x886644, 0.5);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+  const hemi = new THREE.HemisphereLight(0xfff5e0, 0x886644, 0.8);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff0d8, 0.7);
+  const sun = new THREE.DirectionalLight(0xfff0d8, 1.0);
   sun.position.set(6, 10, 5);
   scene.add(sun);
 
@@ -112,7 +112,7 @@ export function buildClassroom(scene, physics) {
   const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.7, 0.08), M(0x6b4423));
   boardFrame.position.set(-0.5, 1.7, -ROOM.depth/2 + 0.04);
   scene.add(boardFrame);
-  const board = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 0.06), M(0x1e4a2e));
+  const board = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 0.06), M(0x2a6b4a));
   board.position.set(-0.5, 1.7, -ROOM.depth/2 + 0.07);
   scene.add(board);
   mark(board, 'blackboard', '在黑板上乱涂');

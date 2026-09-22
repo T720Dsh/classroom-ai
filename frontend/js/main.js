@@ -1,11 +1,11 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js?v=9';
-import { PhysicsWorld } from './physics.js?v=9';
-import { Player } from './player.js?v=9';
-import { buildAllNPCs } from './npc.js?v=9';
-import { Dialogue } from './dialogue.js?v=9';
-import { Audio } from './audio.js?v=9';
+import { buildClassroom } from './scene.js?v=15';
+import { PhysicsWorld } from './physics.js?v=15';
+import { Player } from './player.js?v=15';
+import { buildAllNPCs } from './npc.js?v=15';
+import { Dialogue } from './dialogue.js?v=15';
+import { Audio } from './audio.js?v=15';
 import * as CANNON from 'cannon-es';
 
 // ---------- 基础 ----------
@@ -15,10 +15,12 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = false;
 renderer.toneMapping = THREE.NoToneMapping;
+THREE.ColorManagement.enabled = false;
 window.__renderer = renderer;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+window.__camera = camera;
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth/window.innerHeight;
@@ -31,6 +33,7 @@ const physics = new PhysicsWorld();
 const room = buildClassroom(scene, physics);
 window.__scene = scene; // debug
 const player = new Player(camera, canvas, room.staticColliders, room.ROOM);
+window.__player = player;
 const dialogue = new Dialogue(camera, player);
 const audio = new Audio();
 
