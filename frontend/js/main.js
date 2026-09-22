@@ -1,11 +1,11 @@
 // main.js — 入口
 import * as THREE from 'three';
-import { buildClassroom } from './scene.js?v=18';
-import { PhysicsWorld } from './physics.js?v=18';
-import { Player } from './player.js?v=18';
-import { buildAllNPCs } from './npc.js?v=18';
-import { Dialogue } from './dialogue.js?v=18';
-import { Audio } from './audio.js?v=18';
+import { buildClassroom } from './scene.js?v=19';
+import { PhysicsWorld } from './physics.js?v=19';
+import { Player } from './player.js?v=19';
+import { buildAllNPCs } from './npc.js?v=19';
+import { Dialogue } from './dialogue.js?v=19';
+import { Audio } from './audio.js?v=19';
 import { createVisualTour } from './visual-tour.js';
 import * as CANNON from 'cannon-es';
 
